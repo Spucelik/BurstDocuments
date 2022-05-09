@@ -45,7 +45,7 @@ namespace BurstDocuments
 
 
             byte[] newFileOutput = null;
-            byte[] zipOutput = null;
+            // byte[] zipOutput = null;
             string fileNameZip = "DocumentExport_" + DateTime.Now.ToString("yyyyMMddhhmmss") + ".zip";
 
             List<SourceFile> sourceFiles = new List<SourceFile>();
@@ -54,42 +54,60 @@ namespace BurstDocuments
             int iStartPage = 1;
             int iEndPage = 1;
             Boolean bCreateFile = false;
+            int prevStart = 1; //used to store the first page number that has to be split
+            int docCount = 1; //used for split document's filename
 
             for (int page = 1; page <= pdfDoc.GetNumberOfPages(); page++)
             {
-                Console.WriteLine(page.ToString());
+                
+                Console.WriteLine("Page num - " + page.ToString());
                 int pageSize = pdfDoc.GetPage(page).GetContentBytes().Length;
+                               
+                String text = PdfTextExtractor.GetTextFromPage(pdfDoc.GetPage(page));
 
-                if (pageSize < 300)
+                //Console.WriteLine(pageSize);
+
+                if(text.Contains("Page 1"))
+                {
+                    Console.WriteLine(page + " contains Page 1 text ... ");
+                    bCreateFile = true;
+                    iStartPage = prevStart;
+                    prevStart = page;
+                    iEndPage = page - 1;
+                    
+                }
+
+                /*if (pageSize < 15000)
                 {   
                     bCreateFile = true;
                     iEndPage--;
-                }
+                }*/
 
                 if (page == pdfDoc.GetNumberOfPages())
                 {
                     bCreateFile = true;
+                    iStartPage = prevStart;
                     iEndPage = pdfDoc.GetNumberOfPages();
                 }
 
-                if (bCreateFile)
+                if (bCreateFile && iEndPage != 0)
                 {
                     newFileOutput = CreateFile(pdfDoc, iStartPage, iEndPage);
 
-                   string fileName = "Document_" + page;
+                   string fileName = "Document_" + docCount;
                    
                     sourceFiles.Add ( new SourceFile { Name = fileName, Extension = ".pdf", FileBytes = newFileOutput });
 
                     newFileOutput = null;
 
-                    iStartPage = page + 1;
-                    iEndPage++;
+                    //iStartPage = page + 1;
+                    //iEndPage++;
                     bCreateFile = false;
-
+                    docCount++;
                 }
                 else
                 {
-                    iEndPage++;
+                    //iEndPage++;
                     bCreateFile = false;
                 }
             }
@@ -146,6 +164,17 @@ namespace BurstDocuments
                 }
 
                 return fileOutput;
+            }
+
+            static string BytesToString(byte[] bytes)
+            {
+                using (MemoryStream stream = new MemoryStream(bytes))
+                {
+                    using (StreamReader streamReader = new StreamReader(stream))
+                    {
+                        return streamReader.ReadToEnd();
+                    }
+                }
             }
         }
     }
